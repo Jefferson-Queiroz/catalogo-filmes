@@ -9,12 +9,16 @@ function EditMovie() {
   const [title, setTitle] = useState("");
   const [year, setYear] = useState("");
   const [image, setImage] = useState("");
+  const [description, setDescription] = useState("");
+  const [genre, setGenre] = useState("");
 
   useEffect(() => {
-    api.get(`/movies/${id}`).then(response => {
-      setTitle(response.data.title);
-      setYear(response.data.year);
-      setImage(response.data.image || "");
+    api.get(`/movies/${id}`).then(res => {
+      setTitle(res.data.title);
+      setYear(res.data.year);
+      setImage(res.data.image || "");
+      setDescription(res.data.description || "");
+      setGenre(res.data.genre || "");
     });
   }, [id]);
 
@@ -24,11 +28,11 @@ function EditMovie() {
     api.put(`/movies/${id}`, {
       title,
       year,
-      image
+      image,
+      description,
+      genre
     }).then(() => {
       navigate("/");
-    }).catch(() => {
-      alert("Erro ao atualizar filme");
     });
   }
 
@@ -37,26 +41,11 @@ function EditMovie() {
       <h1>Editar Filme</h1>
 
       <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          required
-        />
-
-        <input
-          type="number"
-          value={year}
-          onChange={e => setYear(e.target.value)}
-          required
-        />
-
-        <input
-          type="text"
-          placeholder="URL da capa do filme"
-          value={image}
-          onChange={e => setImage(e.target.value)}
-        />
+        <input value={title} onChange={e => setTitle(e.target.value)} />
+        <input type="number" value={year} onChange={e => setYear(e.target.value)} />
+        <input value={image} onChange={e => setImage(e.target.value)} />
+        <input value={genre} onChange={e => setGenre(e.target.value)} />
+        <textarea value={description} onChange={e => setDescription(e.target.value)} />
 
         <button type="submit">Atualizar</button>
       </form>

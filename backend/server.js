@@ -1,117 +1,101 @@
 const express = require("express");
 const cors = require("cors");
-const initSqlJs = require("sql.js");
-const fs = require("fs");
-const path = require("path");
+const sqlite3 = require("sqlite3").verbose();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const dbFile = path.join(__dirname, "database.sqlite");
-let db;
-
-// Inicializar banco
-initSqlJs().then(SQL => {
-  if (fs.existsSync(dbFile)) {
-    const filebuffer = fs.readFileSync(dbFile);
-    db = new SQL.Database(filebuffer);
+const db = new sqlite3.Database("./database.db", (err) => {
+  if (err) {
+    console.error("Erro ao conectar no banco:", err);
   } else {
-    db = new SQL.Database();
-    db.run(`
-      CREATE TABLE movies (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        year INTEGER NOT NULL,
-        image TEXT
-      );
-    `);
-    saveDb();
+    console.log("Banco conectado");
   }
-
-  console.log("Banco SQLite inicializado com sql.js");
 });
 
-function saveDb() {
-  const data = db.export();
-  fs.writeFileSync(dbFile, Buffer.from(data));
-}
+db.run(`
+  CREATE TABLE IF NOT EXISTS movies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    image TEXT,
+    description TEXT,
+    genre TEXT
+  )
+`);
 
-// Rota teste
 app.get("/", (req, res) => {
   res.send("API de Filmes funcionando!");
 });
 
-// LISTAR
 app.get("/movies", (req, res) => {
-  const result = db.exec("SELECT * FROM movies");
-  const movies = result[0]
-    ? result[0].values.map(row => ({
-        id: row[0],
-        title: row[1],
-        year: row[2],
-        image: row[3]
-      }))
-    : [];
-  res.json(movies);
-});
-
-// BUSCAR POR ID
-app.get("/movies/:id", (req, res) => {
-  const result = db.exec(
-    `SELECT * FROM movies WHERE id = ${req.params.id}`
-  );
-
-  if (!result[0]) {
-    return res.status(404).json({ error: "Filme não encontrado" });
-  }
-
-  const row = result[0].values[0];
-  res.json({
-    id: row[0],
-    title: row[1],
-    year: row[2],
-    image: row[3]
+  db.all("SELECT * FROM movies", (err, rows) => {
+    if (err) {
+      return res.status(500).json(err);
+    }
+    res.json(rows);
   });
 });
 
-// CRIAR
+app.get("/movies/:id", (req, res) => {
+  const { id } = req.params;
+  db.get("SELECT * FROM movies WHERE id = ?", [id], (err, row) => {
+    if (err) {
+      return res.status(500).json(err);
+    }
+    if (!row) {
+      return res.status(404).json({ message: "Filme não encontrado" });
+    }
+    res.json(row);
+  });
+});
+
 app.post("/movies", (req, res) => {
-  const { title, year, image } = req.body;
+  const { title, year, image, description, genre } = req.body;
 
   db.run(
-    `INSERT INTO movies (title, year, image)
-     VALUES (?, ?, ?)`,
-    [title, year, image]
+    `INSERT INTO movies (title, year, image, description, genre)
+     VALUES (?, ?, ?, ?, ?)`,
+    [title, year, image, description, genre],
+    function (err) {
+      if (err) {
+        return res.status(500).json(err);
+      }
+      res.status(201).json({ id: this.lastID });
+    }
   );
-
-  saveDb();
-  res.status(201).json({ message: "Filme criado com sucesso" });
 });
 
-// ATUALIZAR
 app.put("/movies/:id", (req, res) => {
-  const { title, year, image } = req.body;
+  const { id } = req.params;
+  const { title, year, image, description, genre } = req.body;
 
   db.run(
-    `UPDATE movies SET title = ?, year = ?, image = ?
+    `UPDATE movies
+     SET title = ?, year = ?, image = ?, description = ?, genre = ?
      WHERE id = ?`,
-    [title, year, image, req.params.id]
+    [title, year, image, description, genre, id],
+    function (err) {
+      if (err) {
+        return res.status(500).json(err);
+      }
+      res.json({ message: "Filme atualizado" });
+    }
   );
-
-  saveDb();
-  res.json({ message: "Filme atualizado" });
 });
 
-// DELETAR
 app.delete("/movies/:id", (req, res) => {
-  db.run(`DELETE FROM movies WHERE id = ?`, [req.params.id]);
-  saveDb();
-  res.json({ message: "Filme removido" });
+  const { id } = req.params;
+
+  db.run("DELETE FROM movies WHERE id = ?", [id], function (err) {
+    if (err) {
+      return res.status(500).json(err);
+    }
+    res.json({ message: "Filme removido" });
+  });
 });
 
-// Porta
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+app.listen(3001, () => {
+  console.log("Servidor rodando em http://localhost:3001");
 });

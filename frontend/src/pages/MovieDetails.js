@@ -7,9 +7,7 @@ function MovieDetails() {
   const [movie, setMovie] = useState(null);
 
   useEffect(() => {
-    api.get(`/movies/${id}`)
-      .then(response => setMovie(response.data))
-      .catch(() => alert("Erro ao carregar filme"));
+    api.get(`/movies/${id}`).then(res => setMovie(res.data));
   }, [id]);
 
   if (!movie) return <p>Carregando...</p>;
@@ -17,17 +15,13 @@ function MovieDetails() {
   return (
     <div className="container">
       <h1>{movie.title}</h1>
-      <p>Ano: {movie.year}</p>
+      <p><strong>Ano:</strong> {movie.year}</p>
+      <p><strong>Gênero:</strong> {movie.genre}</p>
+      <p>{movie.description}</p>
 
-      {movie.image && (
-        <img
-          src={movie.image}
-          alt={movie.title}
-          style={{ width: "250px", marginBottom: "10px" }}
-        />
-      )}
+      {movie.image && <img src={movie.image} alt={movie.title} width="250" />}
 
-      <br />
+      <br /><br />
       <Link to="/">Voltar</Link>
     </div>
   );
